@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d11">
+<title>GriffinSIGHT // Ingest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d11; --bg2:#0f1318; --surface:#151a21; --surface2:#1c2230;
+  --border:#242b36; --border-hi:#3a4354;
+  --text:#d6dae2; --text-dim:#7a8292; --text-mute:#4d5666;
+  --keep:#7dd87d; --keep-dim:#3a6b38;
+  --drop:#d97777; --drop-dim:#6b3838;
+  --warn:#e8a33d; --info:#5b9dd9;
+  --disp:"Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--disp); min-height:100vh}
+body{padding:12px 14px 24px; padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+::selection{background:var(--keep-dim); color:var(--text)}
+
+.hdr{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+     padding-bottom:10px; border-bottom:1px solid var(--border); margin-bottom:12px}
+.hdr-bar{width:6px; height:18px; background:var(--keep); border-radius:1px; box-shadow:0 0 8px var(--keep-dim)}
+.hdr-title{font-size:14px; font-weight:700; letter-spacing:.1em}
+.hdr-title .sub{color:var(--text-mute); font-weight:400}
+.hdr-sub{font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-top:1px}
+.hdr-counts{font-family:var(--mono); font-size:11px; color:var(--text-dim); display:flex; gap:14px; margin-left:auto}
+.dot{display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px}
+
+.row{display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap}
+.input-wrap{display:flex; align-items:center; background:var(--surface); border:1px solid var(--border);
+            border-radius:4px; padding:0 10px; min-height:42px}
+.input-wrap.grow{flex:1 1 200px}
+.input-wrap svg{flex-shrink:0}
+.input-wrap input{flex:1; background:transparent; border:none; outline:none; color:var(--text);
+                  font-family:var(--mono); font-size:14px; padding:10px; min-width:0; -webkit-appearance:none}
+.input-wrap .label{font-family:var(--mono); font-size:10px; color:var(--text-mute); margin-right:6px}
+.input-wrap select.class-input{
+  -webkit-appearance:none; appearance:none;
+  background-color:transparent; border:none; outline:none;
+  color:var(--keep); font-family:var(--mono); font-size:14px; font-weight:500;
+  padding:10px 18px 10px 0; min-width:120px; cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%237a8292' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat; background-position:right center; background-size:11px;
+}
+.input-wrap select.class-input option{background:var(--surface); color:var(--text)}
+.input-wrap select.class-input option.custom{color:var(--warn); font-style:italic}
+
+.go-row{display:flex; gap:6px; margin-bottom:10px}
+.go{flex:2; background:var(--keep); color:var(--bg); border:none; border-radius:4px;
+    padding:16px 0; font-family:var(--disp); font-weight:700; font-size:20px; letter-spacing:.3em;
+    cursor:pointer; box-shadow:0 0 18px var(--keep-dim); touch-action:manipulation;
+    user-select:none; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:background .12s, box-shadow .12s}
+.go:disabled{background:var(--keep-dim); box-shadow:none; cursor:not-allowed}
+.more{flex:1; background:transparent; color:var(--text); border:1px solid var(--border-hi);
+      border-radius:4px; padding:16px 0; font-family:var(--disp); font-weight:600; font-size:14px;
+      letter-spacing:.18em; cursor:pointer; touch-action:manipulation; user-select:none}
+.more:disabled{color:var(--text-mute); cursor:not-allowed}
+
+.presets{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; align-items:center}
+.presets .label{font-family:var(--mono); font-size:10px; color:var(--text-mute); margin-right:2px}
+.preset{background:transparent; border:1px solid var(--border); color:var(--text-dim);
+        border-radius:3px; padding:5px 10px; font-family:var(--mono); font-size:11px; cursor:pointer;
+        touch-action:manipulation}
+
+.err{background:rgba(107,56,56,.25); border:1px solid var(--drop); color:var(--drop);
+     padding:10px 12px; border-radius:4px; margin-bottom:10px; font-family:var(--mono); font-size:13px; line-height:1.4}
+.err-title{font-family:var(--disp); font-weight:700; letter-spacing:.1em; margin-bottom:4px}
+
+.empty{text-align:center; padding:50px 20px; color:var(--text-mute);
+       border:1px dashed var(--border); border-radius:6px; font-family:var(--mono); font-size:12px}
+.empty.no-results{border-color:var(--warn)}
+.empty-title{color:var(--warn); font-size:14px; font-family:var(--disp); font-weight:700;
+             letter-spacing:.1em; margin-bottom:8px}
+
+/* ===== Layout (3 columns on desktop) ===== */
+.layout{display:grid; grid-template-columns:1fr; gap:14px; align-items:start}
+@media (min-width:900px){
+  .layout{grid-template-columns:240px 1fr 300px}
+}
+.main-col{min-width:0}
+
+/* ===== Sources sidebar ===== */
+.sources{background:var(--surface2); border:1px solid var(--border-hi); border-radius:6px;
+         display:flex; flex-direction:column}
+@media (min-width:900px){
+  .sources{position:sticky; top:10px; max-height:calc(100vh - 20px); overflow-y:auto}
+}
+.sources-hdr{padding:10px 12px; border-bottom:1px solid var(--border);
+             display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer}
+.sources-hdr-title{font-family:var(--disp); font-weight:700; font-size:12px; letter-spacing:.15em;
+                   color:var(--info); display:flex; align-items:center; gap:7px}
+.sources-hdr-sub{font-family:var(--mono); font-size:10px; color:var(--text-dim)}
+.sources-hdr-sub .toggle-all{color:var(--info); cursor:pointer; text-decoration:underline;
+                             text-decoration-color:var(--border-hi); text-underline-offset:2px;
+                             margin-left:6px}
+.sources-hdr-sub .toggle-all:active{color:var(--keep)}
+.sources-toggle{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:4px;
+                display:flex; transition:transform .15s}
+@media (min-width:900px){ .sources-toggle{display:none} .sources-hdr{cursor:default} }
+.sources.collapsed .sources-toggle{transform:rotate(-90deg)}
+.sources.collapsed .sources-body{display:none}
+
+.sources-body{padding:8px; display:flex; flex-direction:column; gap:6px}
+@media (max-width:899px){
+  .sources-body{flex-direction:row; overflow-x:auto; padding:8px 8px 10px;
+                scroll-snap-type:x mandatory; gap:8px}
+  .sources-body::-webkit-scrollbar{height:4px}
+  .sources-body::-webkit-scrollbar-thumb{background:var(--border); border-radius:2px}
+}
+
+.source{background:var(--surface); border:1px solid var(--border); border-radius:5px;
+        padding:9px 10px; transition:border-color .12s, background .12s, opacity .12s;
+        display:flex; flex-direction:column; gap:5px; user-select:none; position:relative;
+        cursor:pointer}
+.source:active{background:var(--bg2)}
+.source.loading{border-color:var(--info); cursor:default}
+.source.errored{border-color:var(--drop-dim); background:rgba(107,56,56,.1)}
+.source.excluded{opacity:.42}
+.source.excluded:active{background:var(--surface)}
+.source.locked{opacity:.48; cursor:default}
+.source.locked:active{background:var(--surface)}
+.source.needs-config{border-color:var(--warn); background:rgba(232,163,61,.06); cursor:pointer}
+.source.needs-config .source-meta{color:var(--warn); font-weight:600}
+@media (max-width:899px){
+  .source{flex:0 0 auto; min-width:180px; scroll-snap-align:start}
+}
+
+.source-head{display:flex; align-items:center; gap:8px}
+.source-status{width:14px; height:14px; border:1.5px solid var(--border-hi);
+               flex-shrink:0; display:flex; align-items:center; justify-content:center;
+               background:var(--bg); border-radius:3px; transition:all .12s}
+/* Included (idle): green checkbox */
+.source.included .source-status{border-color:var(--keep); background:var(--keep)}
+.source.included .source-status::after{content:''; width:7px; height:3px;
+                                       border:1.5px solid var(--bg); border-top:none; border-right:none;
+                                       transform:rotate(-45deg) translate(1px,-1px); line-height:1}
+/* Excluded: empty checkbox */
+.source.excluded .source-status{border-color:var(--text-mute); background:var(--bg)}
+/* Loading: spinner */
+.source.loading .source-status{border-color:var(--info); background:var(--bg); border-radius:50%}
+.source.loading .source-status::after{content:''; width:8px; height:8px; border-radius:50%;
+                                      border:1.5px solid var(--info); border-right-color:transparent;
+                                      animation:spin .7s linear infinite; transform:none}
+/* Errored: amber ! */
+.source.errored .source-status{border-color:var(--drop); background:var(--bg); border-radius:3px}
+.source.errored .source-status::after{content:'!'; font-family:var(--disp); font-weight:700;
+                                      font-size:10px; color:var(--drop); line-height:1;
+                                      border:none; transform:none; width:auto; height:auto}
+/* Locked: muted ⊘ */
+.source.locked .source-status{border-color:var(--text-mute); border-style:dashed; background:var(--bg); border-radius:50%}
+.source.locked .source-status::after{content:'⊘'; font-size:11px; color:var(--text-mute); line-height:1;
+                                     border:none; transform:none; width:auto; height:auto}
+/* Needs-config: amber gear icon */
+.source.needs-config .source-status{border-color:var(--warn); background:var(--bg); border-radius:3px}
+.source.needs-config .source-status::after{content:'⚙'; font-size:11px; color:var(--warn); line-height:1;
+                                           border:none; transform:none; width:auto; height:auto}
+
+.source-name{flex:1; font-family:var(--disp); font-weight:600; font-size:12px;
+             letter-spacing:.05em; color:var(--text); min-width:0;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.source-hits{font-family:var(--mono); font-size:10px; font-weight:600;
+             background:var(--border); color:var(--text-dim);
+             padding:2px 7px; border-radius:8px; min-width:24px; text-align:center; flex-shrink:0}
+.source.included .source-hits{background:var(--keep-dim); color:var(--keep)}
+.source-meta{font-family:var(--mono); font-size:9px; color:var(--text-mute);
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:22px}
+.source.errored .source-meta{color:var(--drop)}
+
+.source-remove{position:absolute; top:5px; right:5px; background:none; border:none;
+               color:var(--text-mute); cursor:pointer; padding:3px; border-radius:3px;
+               display:flex; opacity:0; transition:opacity .15s}
+.source:hover .source-remove, .source.errored .source-remove{opacity:.7}
+.source-remove:active{color:var(--drop); background:var(--drop-dim); opacity:1}
+@media (max-width:899px){ .source-remove{opacity:.5} }
+
+.source-config{position:absolute; top:5px; right:5px; background:none; border:none;
+               color:var(--text-mute); cursor:pointer; padding:3px; border-radius:3px;
+               display:flex; opacity:.5; transition:opacity .15s, color .15s}
+.source-config:hover, .source.needs-config .source-config{opacity:1; color:var(--warn)}
+.source-config:active{background:var(--surface2)}
+.source.errored .source-config{color:var(--drop); opacity:1}
+/* If both config and remove exist (unlikely for now; custom sources don't need keys), stack them */
+.source-config + .source-remove, .source-remove + .source-config{right:28px}
+
+.source-divider-label{font-family:var(--mono); font-size:9px; color:var(--text-mute);
+                      letter-spacing:.1em; text-transform:uppercase; padding:6px 2px 2px;
+                      border-top:1px dashed var(--border); margin-top:2px; text-align:center}
+@media (max-width:899px){ .source-divider-label{display:none} }
+
+.add-source-btn{background:transparent; border:1px dashed var(--border-hi); color:var(--text-dim);
+                border-radius:5px; padding:9px 10px; font-family:var(--disp); font-weight:600;
+                font-size:11px; letter-spacing:.1em; cursor:pointer; touch-action:manipulation;
+                display:flex; align-items:center; justify-content:center; gap:6px;
+                transition:color .12s, border-color .12s}
+.add-source-btn:active{color:var(--info); border-color:var(--info)}
+@media (max-width:899px){ .add-source-btn{flex:0 0 auto; min-width:140px; scroll-snap-align:start} }
+
+/* ===== Grid ===== */
+.grid-hdr{display:flex; justify-content:space-between; align-items:center;
+          margin-bottom:8px; padding:2px 2px;
+          font-family:var(--mono); font-size:11px; color:var(--text-dim)}
+.grid-hdr-count{display:flex; align-items:center; gap:6px}
+.grid-hdr-count .hdr-dot{width:5px; height:5px; border-radius:50%;
+                         background:var(--text-dim); display:inline-block}
+.clear-grid{background:transparent; color:var(--text-dim);
+            border:1px solid var(--border); border-radius:3px;
+            padding:6px 12px; font-family:var(--disp); font-weight:600;
+            font-size:10px; letter-spacing:.1em; cursor:pointer;
+            touch-action:manipulation; display:inline-flex; align-items:center; gap:5px;
+            transition:color .12s, border-color .12s}
+.clear-grid:active{color:var(--drop); border-color:var(--drop-dim)}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:8px}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:6px;
+      overflow:hidden; display:flex; flex-direction:column;
+      transition:transform .2s ease-out, opacity .2s ease-out; animation:fadeIn .2s ease-out}
+@keyframes fadeIn{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)}}
+.card.leaving{transform:scale(.85); opacity:0; pointer-events:none}
+.card .thumb{position:relative; background:var(--bg); aspect-ratio:4/3; overflow:hidden}
+.card .thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.card .src-tag{position:absolute; top:6px; left:6px; background:rgba(10,13,17,.8);
+               color:var(--info); font-family:var(--disp); font-weight:600; font-size:9px;
+               letter-spacing:.1em; padding:2px 6px; border-radius:3px; border:1px solid var(--border)}
+.card .info-btn{position:absolute; top:6px; right:6px; background:rgba(10,13,17,.75);
+                border:1px solid var(--border); border-radius:3px; padding:4px; cursor:pointer;
+                color:var(--text-dim); display:flex; align-items:center; justify-content:center}
+.card .meta{padding:6px 8px; font-family:var(--mono); font-size:10px; color:var(--text-dim); flex:1}
+.card .meta .title{color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px}
+.card .meta .lic{color:var(--warn)}
+.card .meta .lic.pd{color:var(--keep)}
+.card .actions{display:flex; border-top:1px solid var(--border)}
+.card .actions button{flex:1; background:transparent; border:none; padding:10px 0; cursor:pointer;
+                     font-family:var(--disp); font-weight:600; font-size:11px; letter-spacing:.1em;
+                     display:flex; align-items:center; justify-content:center; gap:4px;
+                     touch-action:manipulation; user-select:none}
+.card .actions .a-keep{color:var(--keep); border-right:1px solid var(--border)}
+.card .actions .a-drop{color:var(--drop)}
+.card .actions .a-keep:active{background:var(--keep); color:var(--bg)}
+.card .actions .a-drop:active{background:var(--drop); color:var(--bg)}
+
+/* ===== Cart ===== */
+.cart{background:var(--surface2); border:1px solid var(--border-hi); border-radius:6px;
+      display:flex; flex-direction:column}
+@media (min-width:900px){
+  .cart{position:sticky; top:10px; max-height:calc(100vh - 20px)}
+}
+.cart-hdr{padding:10px 12px; border-bottom:1px solid var(--border);
+          display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer}
+.cart-hdr-title{font-family:var(--disp); font-weight:700; font-size:12px; letter-spacing:.15em;
+                color:var(--keep); display:flex; align-items:center; gap:7px}
+.cart-hdr-title .chip{background:var(--keep); color:var(--bg); font-size:11px; padding:2px 7px;
+                      border-radius:10px; letter-spacing:.05em; font-weight:700; min-width:22px; text-align:center}
+.cart-hdr-sub{font-family:var(--mono); font-size:10px; color:var(--text-dim)}
+.cart-toggle{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:4px;
+             display:flex; transition:transform .15s}
+@media (min-width:900px){ .cart-toggle{display:none} .cart-hdr{cursor:default} }
+.cart.collapsed .cart-toggle{transform:rotate(-90deg)}
+.cart.collapsed .cart-body, .cart.collapsed .cart-footer{display:none}
+
+.cart-body{flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px;
+           min-height:0}
+@media (max-width:899px){ .cart-body{max-height:340px} }
+
+.cart-item{display:flex; gap:8px; background:var(--surface); border:1px solid var(--border);
+           border-radius:4px; padding:5px; position:relative; animation:slideIn .25s ease-out}
+@keyframes slideIn{from{opacity:0; transform:translateX(12px)} to{opacity:1; transform:translateX(0)}}
+.cart-item .ci-thumb{width:60px; height:45px; flex-shrink:0; background:var(--bg); border-radius:3px;
+                     overflow:hidden}
+.cart-item .ci-thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.cart-item .ci-meta{flex:1; min-width:0; font-family:var(--mono); font-size:10px; color:var(--text-dim);
+                    padding-right:18px}
+.cart-item .ci-title{color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cart-item .ci-sub{margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cart-item .ci-src{color:var(--info); font-weight:600}
+.cart-item .ci-lic{color:var(--warn)}
+.cart-item .ci-lic.pd{color:var(--keep)}
+.cart-item .ci-remove{position:absolute; top:3px; right:3px; background:none; border:none;
+                      color:var(--text-mute); cursor:pointer; padding:2px; border-radius:3px;
+                      display:flex; align-items:center; justify-content:center}
+.cart-item .ci-remove:active{color:var(--drop); background:var(--drop-dim)}
+
+.cart-empty{padding:20px 14px; text-align:center; color:var(--text-mute); font-family:var(--mono);
+            font-size:11px; line-height:1.6}
+
+.cart-footer{border-top:1px solid var(--border); padding:10px 12px; display:flex;
+             flex-direction:column; gap:6px}
+.export{background:var(--keep); color:var(--bg); border:none; border-radius:4px;
+        padding:12px 14px; font-family:var(--disp); font-weight:700; font-size:13px;
+        letter-spacing:.15em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+        touch-action:manipulation; user-select:none; width:100%}
+.export:disabled{background:var(--keep-dim); color:var(--text-mute); cursor:not-allowed}
+.cart-clear{background:transparent; color:var(--drop); border:1px solid var(--drop-dim);
+            border-radius:4px; padding:8px 0; font-family:var(--disp); font-weight:600; font-size:10px;
+            letter-spacing:.1em; cursor:pointer; touch-action:manipulation; width:100%}
+
+/* ===== Modal (shared) ===== */
+.modal{position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:100;
+       display:flex; align-items:center; justify-content:center; padding:16px}
+.modal-inner{background:var(--surface); border:1px solid var(--border-hi); border-radius:6px;
+             max-width:720px; width:100%; max-height:90vh; overflow:auto; display:flex; flex-direction:column}
+.modal-hdr{padding:10px 14px; border-bottom:1px solid var(--border); display:flex;
+           justify-content:space-between; align-items:center; font-family:var(--disp); font-size:12px;
+           letter-spacing:.05em; text-transform:uppercase; color:var(--text)}
+.modal-hdr button.close{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:4px}
+.modal-img{width:100%; max-height:320px; object-fit:contain; background:var(--bg)}
+.modal-body{padding:14px; display:grid; grid-template-columns:90px 1fr; gap:6px 10px;
+            font-family:var(--mono); font-size:11px}
+.modal-body .k{color:var(--text-mute)}
+.modal-body .v{word-break:break-word}
+.modal-body a{color:var(--info); word-break:break-all}
+
+/* ===== Add-source modal ===== */
+.as-body{padding:14px; display:flex; flex-direction:column; gap:10px; min-height:0; flex:1}
+.as-intro{font-family:var(--mono); font-size:11px; color:var(--text-dim); line-height:1.5}
+.as-intro code{background:var(--bg); color:var(--info); padding:1px 5px; border-radius:3px; font-size:10px}
+.as-textarea{flex:1; min-height:260px; background:var(--bg); border:1px solid var(--border);
+             border-radius:4px; padding:10px; color:var(--text); font-family:var(--mono);
+             font-size:11px; line-height:1.5; resize:vertical; outline:none; tab-size:2}
+.as-textarea:focus{border-color:var(--info)}
+.as-textarea.invalid{border-color:var(--drop)}
+.as-row{display:flex; gap:8px; flex-wrap:wrap}
+.as-btn{background:transparent; border:1px solid var(--border-hi); color:var(--text);
+        border-radius:4px; padding:9px 14px; font-family:var(--disp); font-weight:600; font-size:11px;
+        letter-spacing:.1em; cursor:pointer; touch-action:manipulation}
+.as-btn.primary{background:var(--keep); color:var(--bg); border-color:var(--keep)}
+.as-btn.primary:disabled{background:var(--keep-dim); border-color:var(--keep-dim); color:var(--text-mute); cursor:not-allowed}
+.as-btn.ghost{color:var(--text-dim); border-color:var(--border)}
+.as-feedback{font-family:var(--mono); font-size:11px; padding:8px 10px; border-radius:4px;
+             line-height:1.5; word-break:break-word}
+.as-feedback.err{background:rgba(107,56,56,.25); border:1px solid var(--drop-dim); color:var(--drop)}
+.as-feedback.ok{background:rgba(58,107,56,.25); border:1px solid var(--keep-dim); color:var(--keep)}
+
+.spin{animation:spin .8s linear infinite; display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-bar"></div>
+  <div>
+    <div class="hdr-title">GRIFFINSIGHT <span class="sub">// INGEST</span></div>
+    <div class="hdr-sub">Automatic Target Recognition (ATR) training set curator</div>
+  </div>
+  <div class="hdr-counts" id="counts">
+    <span><span class="dot" style="background:var(--keep)"></span>0 cart</span>
+    <span><span class="dot" style="background:var(--text-mute)"></span>0 pending</span>
+  </div>
+</div>
+
+<div class="row">
+  <label class="input-wrap grow">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="q" type="search" enterkeyhint="search" autocorrect="off" autocapitalize="off"
+           value="AAV-7 amphibious assault vehicle" placeholder="Search all active sources…">
+  </label>
+  <label class="input-wrap">
+    <span class="label">class:</span>
+    <select id="cls" class="class-input"></select>
+  </label>
+</div>
+
+<div class="go-row">
+  <button id="go" class="go">▶ GO</button>
+  <button id="more" class="more" disabled>+ MORE</button>
+</div>
+
+<div class="presets" id="presets">
+  <span class="label">presets:</span>
+</div>
+
+<div id="err" class="err hidden"></div>
+
+<div class="layout">
+  <aside class="sources" id="sources">
+    <div class="sources-hdr" id="sources-hdr">
+      <div class="sources-hdr-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+        SOURCES
+      </div>
+      <div class="sources-hdr-sub" id="sources-sub"></div>
+      <button class="sources-toggle" id="sources-toggle" aria-label="Toggle sources">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div class="sources-body" id="sources-body"></div>
+  </aside>
+
+  <div class="main-col">
+    <div id="empty-initial" class="empty">
+      <div style="font-size:13px">Ready to ingest.</div>
+      <div style="font-size:11px; margin-top:4px">Tap a preset, then hit <span style="color:var(--keep); font-weight:600">▶ GO</span>.</div>
+    </div>
+    <div id="empty-no-results" class="empty no-results hidden"></div>
+    <div id="empty-all-sorted" class="empty hidden">
+      <div style="font-size:13px">All candidates sorted.</div>
+      <div style="font-size:11px; margin-top:4px">Tap <span style="color:var(--text); font-weight:600">+ MORE</span> for the next batch.</div>
+    </div>
+    <div id="grid-hdr" class="grid-hdr hidden">
+      <div class="grid-hdr-count">
+        <span class="hdr-dot"></span>
+        <span id="grid-count">0 candidates</span>
+      </div>
+      <button id="clear-grid" class="clear-grid">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        CLEAR ALL
+      </button>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <aside class="cart" id="cart">
+    <div class="cart-hdr" id="cart-hdr">
+      <div class="cart-hdr-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        CART <span class="chip" id="cart-chip">0</span>
+      </div>
+      <div class="cart-hdr-sub" id="cart-sub">0 B</div>
+      <button class="cart-toggle" id="cart-toggle" aria-label="Toggle cart">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div class="cart-body" id="cart-body"></div>
+    <div class="cart-footer" id="cart-footer" style="display:none">
+      <button id="export" class="export">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span id="export-label">EXPORT .ZIP</span>
+      </button>
+      <button id="cart-clear" class="cart-clear">CLEAR CART</button>
+    </div>
+  </aside>
+</div>
+
+<div id="key-modal" class="modal hidden">
+  <div class="modal-inner" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <span id="km-title">Configure API Key</span>
+      <button class="close" id="km-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="as-body">
+      <div class="as-intro" id="km-intro"></div>
+      <div class="as-intro" style="color:var(--text-dim); font-size:10px">
+        This page's origin: <code id="km-origin" style="color:var(--info)"></code>
+      </div>
+      <label style="font-family:var(--mono); font-size:11px; color:var(--text-dim)">API Key</label>
+      <input id="km-key" type="text" autocomplete="off" spellcheck="false"
+             style="background:var(--bg); border:1px solid var(--border); border-radius:4px;
+                    padding:10px 12px; color:var(--text); font-family:var(--mono); font-size:13px;
+                    outline:none; transition:border-color .12s" placeholder="Paste key here">
+      <div id="km-feedback"></div>
+      <div class="as-row">
+        <button class="as-btn ghost" id="km-remove" style="color:var(--drop); border-color:var(--drop-dim)">Remove key</button>
+        <div style="flex:1"></div>
+        <button class="as-btn" id="km-cancel">Cancel</button>
+        <button class="as-btn primary" id="km-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="modal hidden"></div>
+
+<div id="add-source-modal" class="modal hidden">
+  <div class="modal-inner" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <span>Add Custom Source</span>
+      <button class="close" id="as-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="as-body">
+      <div class="as-intro">
+        Paste a JSON configuration describing a REST API that returns images. Supported placeholders in
+        URL, params, and headers: <code>{query}</code> <code>{limit}</code> <code>{offset}</code> <code>{page}</code>.
+        Literal values in the <code>map</code> can be written with a leading <code>=</code> (e.g. <code>"license":"=CC BY-SA 4.0"</code>).
+      </div>
+      <textarea id="as-textarea" class="as-textarea" spellcheck="false" autocomplete="off"></textarea>
+      <div id="as-feedback"></div>
+      <div class="as-row">
+        <button class="as-btn ghost" id="as-load-example">Load example (Pexels)</button>
+        <button class="as-btn ghost" id="as-load-example-simple">Load minimal example</button>
+        <div style="flex:1"></div>
+        <button class="as-btn" id="as-cancel">Cancel</button>
+        <button class="as-btn primary" id="as-save">Add source</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+//=== built-in source catalog ===========================================
+const BUILTIN_SOURCES = [
+  { id:'commons',   name:'Wikimedia Commons',  short:'COMMONS', meta:'Public domain / CC · no key', status:'live', kind:'builtin' },
+  { id:'loc',       name:'Library of Congress', short:'LoC',    meta:'US gov · historical · PD',    status:'live', kind:'builtin' },
+  { id:'openverse', name:'Openverse',           short:'OPENV',  meta:'CC aggregator · multi-source', status:'live', kind:'builtin' },
+  { id:'dvids',     name:'DVIDS',               short:'DVIDS',  meta:'DoD imagery · aerial/operational', status:'live', kind:'builtin', needsKey:true,
+    keyInfo:{
+      signup:'https://api.dvidshub.net',
+      how:'Register at api.dvidshub.net, create an application, register this page\'s origin, receive a key like key-xxxxxxxxxxxxx.',
+      note:'DVIDS keys are bound to a specific origin — register the exact URL this page is served from.'
+    } },
+  { id:'nara',      name:'NARA Catalog',        short:'NARA',   meta:'US National Archives · PD',   status:'live', kind:'builtin', needsKey:true,
+    keyInfo:{
+      signup:'mailto:Catalog_API@nara.gov',
+      how:'Email Catalog_API@nara.gov requesting a read-only API key with your name and email.',
+      note:'10,000 queries/month default limit. Do not commit this key to a public repository.'
+    } },
+];
+
+const PRESETS = [
+  { label:'AAV-7',      query:'AAV-7 amphibious assault vehicle', cls:'aav' },
+  { label:'M1 Abrams',  query:'M1 Abrams tank',                   cls:'abrams' },
+  { label:'M2 Bradley', query:'M2 Bradley fighting vehicle',      cls:'bradley' },
+  { label:'HMMWV',      query:'HMMWV Humvee military',            cls:'hmmwv' },
+  { label:'JLTV',       query:'JLTV Joint Light Tactical Vehicle', cls:'jltv' },
+  { label:'MRAP',       query:'MRAP military vehicle',            cls:'mrap' },
+  { label:'Technical',  query:'technical pickup truck militia',   cls:'technical' },
+];
+
+const BATCH = 10;
+const FILL_TARGET = 16;
+const FILL_MAX    = 80;
+
+//=== state ==============================================================
+const S = {
+  query:'AAV-7 amphibious assault vehicle',
+  className:'aav',
+  items:[],
+  cart:[],
+  seenIds:{},                  // key = sourceId:id → 'kept' | 'dropped'
+  offsets:{},                  // per source
+  hits:{},                     // per source (cumulative count)
+  sourceStatus:{},             // per source: 'idle' | 'loading' | 'errored' | 'locked'
+  sourceErrors:{},             // per source: last error message
+  customSources:[],            // user-added configs
+  excludedSources:[],          // source IDs currently toggled off (persisted)
+  apiKeys:{},                  // per-source API keys, never committed to repo
+  loading:false,
+  error:null,
+  hasSearched:false,
+  exporting:null,
+  cartCollapsed:false,
+  sourcesCollapsed:false,
+};
+
+const LS_KEY = 'gs-ingest-state-v1';
+function persist(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      query:S.query, className:S.className,
+      items:S.items, cart:S.cart, seenIds:S.seenIds,
+      offsets:S.offsets, hits:S.hits,
+      customSources:S.customSources,
+      excludedSources:S.excludedSources,
+      apiKeys:S.apiKeys,
+      cartCollapsed:S.cartCollapsed, sourcesCollapsed:S.sourcesCollapsed,
+    }));
+  }catch(e){}
+}
+function hydrate(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    Object.assign(S, s);
+    if(!Array.isArray(S.cart)) S.cart = [];
+    if(!S.seenIds) S.seenIds = {};
+    if(!S.offsets) S.offsets = {};
+    if(!S.hits)    S.hits    = {};
+    if(!Array.isArray(S.customSources)) S.customSources = [];
+    if(!Array.isArray(S.excludedSources)) S.excludedSources = [];
+    if(!S.apiKeys || typeof S.apiKeys !== 'object') S.apiKeys = {};
+  }catch(e){}
+}
+function allSources(){
+  // Live builtins first, custom next, locked last
+  const live = BUILTIN_SOURCES.filter(s => s.status === 'live');
+  const custom = S.customSources.map(c => ({ ...c, status:'live', kind:'custom' }));
+  const locked = BUILTIN_SOURCES.filter(s => s.status === 'locked');
+  return [...live, ...custom, ...locked];
+}
+function toggleableSources(){
+  // Every source the user can include/exclude (i.e., not locked)
+  return allSources().filter(s => s.status !== 'locked');
+}
+function isExcluded(id){ return S.excludedSources.includes(id); }
+function needsConfig(src){
+  return !!(src.needsKey && !(S.apiKeys[src.id] || '').trim());
+}
+function activeSources(){
+  // Sources that will actually be queried on GO
+  return toggleableSources().filter(s => !isExcluded(s.id));
+}
+
+function toggleSource(id){
+  const src = allSources().find(s => s.id === id);
+  if(!src || src.status === 'locked') return;
+  const idx = S.excludedSources.indexOf(id);
+  if(idx >= 0) S.excludedSources.splice(idx, 1);
+  else S.excludedSources.push(id);
+  persist();
+  renderSources(); renderChrome();
+}
+function selectAllSources(){
+  S.excludedSources = [];
+  persist();
+  renderSources(); renderChrome();
+}
+function clearAllSources(){
+  S.excludedSources = toggleableSources().map(s => s.id);
+  persist();
+  renderSources(); renderChrome();
+}
+
+//=== dom refs ==========================================================
+const $ = id => document.getElementById(id);
+const qInput = $('q'), clsInput = $('cls'),
+      goBtn = $('go'), moreBtn = $('more'),
+      presetsEl = $('presets'), errEl = $('err'),
+      emptyInitial = $('empty-initial'),
+      emptyNoResults = $('empty-no-results'),
+      emptyAllSorted = $('empty-all-sorted'),
+      gridEl = $('grid'),
+      gridHdr = $('grid-hdr'), gridCount = $('grid-count'),
+      clearGridBtn = $('clear-grid'),
+      sourcesEl = $('sources'), sourcesHdr = $('sources-hdr'),
+      sourcesBody = $('sources-body'), sourcesSub = $('sources-sub'),
+      sourcesToggle = $('sources-toggle'),
+      cartEl = $('cart'), cartHdr = $('cart-hdr'),
+      cartChip = $('cart-chip'), cartSub = $('cart-sub'),
+      cartBody = $('cart-body'), cartFooter = $('cart-footer'),
+      cartToggle = $('cart-toggle'),
+      exportBtn = $('export'), exportLabel = $('export-label'),
+      cartClearBtn = $('cart-clear'),
+      modalEl = $('modal'), countsEl = $('counts'),
+      asModal = $('add-source-modal'), asTextarea = $('as-textarea'),
+      asFeedback = $('as-feedback'), asCloseBtn = $('as-close'),
+      asCancelBtn = $('as-cancel'), asSaveBtn = $('as-save'),
+      asLoadExample = $('as-load-example'), asLoadExampleSimple = $('as-load-example-simple'),
+      kmModal = $('key-modal'), kmTitle = $('km-title'), kmIntro = $('km-intro'),
+      kmOrigin = $('km-origin'), kmKey = $('km-key'), kmFeedback = $('km-feedback'),
+      kmCloseBtn = $('km-close'), kmCancelBtn = $('km-cancel'),
+      kmSaveBtn = $('km-save'), kmRemoveBtn = $('km-remove');
+
+//=== helpers ===========================================================
+function escHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function stripHtml(s){
+  return String(s || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+}
+function fmtBytes(n){
+  if(!n) return '—';
+  if(n < 1024) return n+' B';
+  if(n < 1048576) return (n/1024).toFixed(0)+' KB';
+  return (n/1048576).toFixed(1)+' MB';
+}
+function sanitize(s){
+  return String(s || '').replace(/[^a-zA-Z0-9._-]+/g,'_').replace(/_+/g,'_')
+          .replace(/^_|_$/g,'').slice(0,120) || 'untitled';
+}
+function csvEsc(v){
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+const K = it => it.source + ':' + it.id;
+function getPath(obj, path){
+  if(!path) return undefined;
+  return String(path).split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+function substitute(template, vars){
+  return String(template ?? '').replace(/\{(\w+)\}/g, (_, k) =>
+    (vars[k] == null ? '' : String(vars[k])));
+}
+
+//=== generic adapter factory (custom sources) ==========================
+function makeGenericAdapter(cfg){
+  return async function(query, limit, offset){
+    const pagStrat  = cfg.pagination?.strategy || 'offset';
+    const pagStart  = cfg.pagination?.startsAt || 0;
+    const page      = Math.floor(offset / limit) + pagStart;
+    const offsetVal = offset + pagStart;
+    const vars = { query, limit, offset:offsetVal, page };
+
+    // Build URL + params
+    const url = new URL(substitute(cfg.endpoint, vars));
+    if(cfg.params){
+      for(const [k,v] of Object.entries(cfg.params)){
+        url.searchParams.set(k, substitute(v, vars));
+      }
+    }
+
+    // Build headers
+    const headers = {};
+    if(cfg.headers){
+      for(const [k,v] of Object.entries(cfg.headers)){
+        headers[k] = substitute(v, vars);
+      }
+    }
+
+    const res = await fetch(url.toString(), {
+      method: cfg.method || 'GET',
+      headers,
+    });
+    if(!res.ok){
+      let body = '';
+      try{ body = (await res.text()).slice(0,160); }catch(e){}
+      throw new Error('HTTP '+res.status+(body?' · '+body:''));
+    }
+    const data = await res.json();
+    const results = getPath(data, cfg.response?.resultsPath) ?? data?.results ?? data?.items ?? data;
+    if(!Array.isArray(results)){
+      throw new Error('expected array at response.'+(cfg.response?.resultsPath || 'results')+', got '+typeof results);
+    }
+
+    const resolveField = (raw, expr) => {
+      if(expr == null) return undefined;
+      if(typeof expr === 'string' && expr.startsWith('=')) return expr.slice(1);
+      return getPath(raw, expr);
+    };
+    const m = cfg.map || {};
+    return results.map(r => {
+      const thumb = resolveField(r, m.thumb);
+      const full  = resolveField(r, m.full) || thumb;
+      if(!thumb || !full) return null;
+      return {
+        id: String(resolveField(r, m.id) ?? r.id ?? Math.random().toString(36).slice(2)),
+        source: cfg.id,
+        title: String(resolveField(r, m.title) || 'Untitled'),
+        pageUrl: String(resolveField(r, m.pageUrl) || ''),
+        thumb, full,
+        width:  Number(resolveField(r, m.width))  || 0,
+        height: Number(resolveField(r, m.height)) || 0,
+        size:   Number(resolveField(r, m.size))   || 0,
+        mime:   String(resolveField(r, m.mime)    || ''),
+        license:String(resolveField(r, m.license) || 'unknown'),
+        credit: String(resolveField(r, m.credit)  || ''),
+        artist: String(resolveField(r, m.artist)  || ''),
+        caption:stripHtml(String(resolveField(r, m.caption) || '')),
+        date:   String(resolveField(r, m.date)    || ''),
+      };
+    }).filter(Boolean);
+  };
+}
+
+//=== built-in adapters =================================================
+async function adapterCommons(query, limit, offset){
+  const params = new URLSearchParams({
+    action:'query', format:'json',
+    generator:'search',
+    gsrsearch: query + ' filetype:bitmap',
+    gsrnamespace:'6',
+    gsrlimit:String(limit), gsroffset:String(offset),
+    prop:'imageinfo',
+    iiprop:'url|size|mime|extmetadata',
+    iiurlwidth:'480',
+    origin:'*',
+  });
+  const res = await fetch('https://commons.wikimedia.org/w/api.php?'+params);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
+  return pages.map(p => {
+    const info = p.imageinfo?.[0];
+    if(!info) return null;
+    const m = info.extmetadata || {};
+    return {
+      id:String(p.pageid),
+      source:'commons',
+      title:p.title.replace(/^File:/, ''),
+      pageUrl:'https://commons.wikimedia.org/wiki/'+encodeURIComponent(p.title),
+      thumb:info.thumburl, full:info.url,
+      width:info.width, height:info.height, size:info.size, mime:info.mime,
+      license:stripHtml(m.LicenseShortName?.value) || 'unknown',
+      credit:stripHtml(m.Credit?.value),
+      artist:stripHtml(m.Artist?.value),
+      caption:stripHtml(m.ImageDescription?.value),
+      date:stripHtml(m.DateTimeOriginal?.value) || stripHtml(m.DateTime?.value),
+    };
+  }).filter(x => x && x.thumb && x.full && /^image\//.test(x.mime));
+}
+
+async function adapterLoC(query, limit, offset){
+  const page = Math.floor(offset / limit) + 1;
+  const params = new URLSearchParams({
+    q: query, fo:'json', c:String(limit), sp:String(page),
+    fa:'online-format:image',
+  });
+  const res = await fetch('https://www.loc.gov/search/?'+params);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  const results = data?.results || [];
+  return results.map(r => {
+    const imgs = Array.isArray(r.image_url) ? r.image_url : (r.image_url ? [r.image_url] : []);
+    if(!imgs.length) return null;
+    const thumb = imgs[Math.min(1, imgs.length-1)] || imgs[0];
+    const full  = imgs[imgs.length-1] || imgs[0];
+    const id = String(r.id || r.item?.id || (r.url || '').replace(/[^a-z0-9]/gi,'_').slice(-40));
+    const rights = r.rights_information || r.rights_advisory || r.rights || '';
+    const licShort = /public domain/i.test(rights) ? 'PD (LoC)'
+                    : /no known/i.test(rights) ? 'No known restrictions'
+                    : (rights ? String(rights).slice(0,40) : 'see LoC rights page');
+    return {
+      id, source:'loc',
+      title: r.title || 'Untitled',
+      pageUrl: r.url || '',
+      thumb, full,
+      width:0, height:0, size:0,
+      mime:'',
+      license: licShort,
+      credit: Array.isArray(r.contributor) ? r.contributor.join(', ') : (r.contributor || ''),
+      artist: Array.isArray(r.creator) ? r.creator.join(', ') : (r.creator || ''),
+      caption: stripHtml(Array.isArray(r.description) ? r.description.join(' ') : r.description),
+      date: r.date || '',
+    };
+  }).filter(x => x && x.thumb && x.full);
+}
+
+async function adapterOpenverse(query, limit, offset){
+  const page = Math.floor(offset / limit) + 1;
+  const params = new URLSearchParams({
+    q: query, page_size:String(limit), page:String(page),
+  });
+  const res = await fetch('https://api.openverse.org/v1/images/?'+params);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  const results = data?.results || [];
+  return results.map(r => ({
+    id:String(r.id),
+    source:'openverse',
+    title:r.title || 'Untitled',
+    pageUrl:r.foreign_landing_url || r.url,
+    thumb:r.thumbnail || r.url,
+    full:r.url,
+    width:r.width || 0, height:r.height || 0, size:r.filesize || 0,
+    mime: '',
+    license: String(r.license || 'cc').toUpperCase() + (r.license_version ? ' '+r.license_version : ''),
+    credit: r.source || '',
+    artist: r.creator || '',
+    caption: r.caption || r.title || '',
+    date: r.created_on || '',
+  })).filter(x => x.thumb && x.full);
+}
+
+async function adapterDVIDS(query, limit, offset){
+  const key = S.apiKeys.dvids;
+  if(!key) throw new Error('DVIDS API key not configured');
+  const page = Math.floor(offset / limit) + 1;
+  const params = new URLSearchParams({
+    q: query,
+    type: 'image',
+    api_key: key,
+    max_results: String(limit),
+    page: String(page),
+  });
+  const res = await fetch('https://api.dvidshub.net/search?'+params);
+  if(!res.ok){
+    let body = '';
+    try{ body = (await res.text()).slice(0,200); }catch(e){}
+    if(res.status === 403) throw new Error('HTTP 403 · key invalid or origin mismatch (register this page\'s URL with DVIDS)');
+    throw new Error('HTTP '+res.status+(body?' · '+body:''));
+  }
+  const data = await res.json();
+  const results = data?.results || [];
+  return results.map(r => {
+    // DVIDS image assets have "image" and "thumbnail" fields. Full-resolution URL varies.
+    const thumb = r.thumbnail || r.image;
+    const full = r.image || r.thumbnail;
+    if(!thumb || !full) return null;
+    const creditArr = Array.isArray(r.credit) ? r.credit : (r.credit ? [r.credit] : []);
+    const creditStr = creditArr.map(c => typeof c === 'object' ? (c.rank ? c.rank+' '+c.name : c.name) : c).filter(Boolean).join(', ');
+    return {
+      id: String(r.id || '').replace(/^image:/, ''),
+      source: 'dvids',
+      title: r.title || 'Untitled',
+      pageUrl: r.url || 'https://www.dvidshub.net/',
+      thumb, full,
+      width: r.width || 0,
+      height: r.height || 0,
+      size: 0,
+      mime: '',
+      license: 'Public Domain (DoD)',
+      credit: creditStr || r.unit_name || '',
+      artist: creditStr,
+      caption: stripHtml(r.description || r.short_description || ''),
+      date: r.date || r.date_published || '',
+    };
+  }).filter(Boolean);
+}
+
+async function adapterNARA(query, limit, offset){
+  const key = S.apiKeys.nara;
+  if(!key) throw new Error('NARA API key not configured');
+  const params = new URLSearchParams({
+    q: query,
+    // Digital-object record types; media-format image filter applied via filter.
+    'recordGroupNumber.type': 'digitalObject',
+    limit: String(limit),
+    offset: String(offset),
+  });
+  // NARA v2 search — only request records that have digital objects with image media.
+  const url = 'https://catalog.archives.gov/api/v2/records/search?'+params;
+  const res = await fetch(url, { headers: { 'x-api-key': key, 'Content-Type':'application/json' } });
+  if(!res.ok){
+    let body = '';
+    try{ body = (await res.text()).slice(0,200); }catch(e){}
+    if(res.status === 401 || res.status === 403) throw new Error('HTTP '+res.status+' · API key rejected');
+    throw new Error('HTTP '+res.status+(body?' · '+body:''));
+  }
+  const data = await res.json();
+  const hits = data?.body?.hits?.hits || data?.hits?.hits || [];
+  return hits.map(h => {
+    const r = h._source || h;
+    // Digital object URLs live in various locations depending on record type
+    const objs = r.record?.digitalObjects || r.digitalObjects || [];
+    const firstObj = Array.isArray(objs) && objs.length ? objs[0] : null;
+    const objectUrl = firstObj?.objectUrl || firstObj?.url || '';
+    const thumbUrl  = firstObj?.thumbnailUrl || objectUrl;
+    if(!objectUrl || !/\.(jpe?g|png|gif|tif|tiff)(\?|$)/i.test(objectUrl)) return null;
+    const naId = r.record?.naId || r.naId || h._id;
+    return {
+      id: String(naId),
+      source: 'nara',
+      title: r.record?.title || r.title || 'Untitled',
+      pageUrl: 'https://catalog.archives.gov/id/'+naId,
+      thumb: thumbUrl, full: objectUrl,
+      width: 0, height: 0, size: 0, mime: '',
+      license: 'Public Domain (US Gov)',
+      credit: r.record?.creators?.[0]?.heading || '',
+      artist: '',
+      caption: stripHtml(r.record?.scopeAndContentNote || r.record?.generalNotes?.[0] || ''),
+      date: r.record?.productionDates?.[0]?.logicalDate || '',
+    };
+  }).filter(Boolean);
+}
+
+const BUILTIN_ADAPTERS = {
+  commons: adapterCommons,
+  loc: adapterLoC,
+  openverse: adapterOpenverse,
+  dvids: adapterDVIDS,
+  nara: adapterNARA,
+};
+
+function getAdapter(src){
+  if(src.kind === 'builtin') return BUILTIN_ADAPTERS[src.id];
+  return makeGenericAdapter(src);
+}
+
+//=== parallel fetch ====================================================
+async function fetchFromOneSource(src, reset){
+  const off = reset ? 0 : (S.offsets[src.id] || 0);
+  const adapter = getAdapter(src);
+  if(!adapter) throw new Error('no adapter for '+src.id);
+  const batch = await adapter(S.query, BATCH, off);
+  // Filter duplicates against grid + cart + dropped
+  const inGrid = new Set(S.items.map(K));
+  const inCart = new Set(S.cart.map(K));
+  const fresh = batch.filter(it => {
+    const k = K(it);
+    return !inGrid.has(k) && !inCart.has(k) && S.seenIds[k] !== 'dropped';
+  });
+  S.items.push(...fresh);
+  S.offsets[src.id] = off + batch.length;
+  S.hits[src.id] = (S.hits[src.id] || 0) + batch.length;
+  return batch.length;   // 0 means source is exhausted for this query
+}
+
+async function runSearch(reset){
+  if(S.loading) return;
+  S.loading = true; S.error = null; S.hasSearched = true;
+  if(reset){
+    S.items = [];
+    // Reset per-source offsets and errors; keep hits (they're cumulative session totals)
+    activeSources().forEach(s => { S.offsets[s.id] = 0; S.sourceErrors[s.id] = null; });
+  }
+  // Sources that need keys but don't have them: skip entirely, don't mark loading
+  const runnable = activeSources().filter(s => !needsConfig(s));
+  runnable.forEach(s => { S.sourceStatus[s.id] = 'loading'; });
+  renderAll();
+
+  const exhausted = {};  // sourceId -> true if we shouldn't try again this auto-fill cycle
+  const runOnce = async (sources) => {
+    return Promise.allSettled(sources.map(async src => {
+      S.sourceStatus[src.id] = 'loading';
+      S.sourceErrors[src.id] = null;
+      renderSources();
+      try{
+        const n = await fetchFromOneSource(src, reset && !S._resetDone?.[src.id]);
+        if(S._resetDone) S._resetDone[src.id] = true;
+        if(n === 0) exhausted[src.id] = true;
+        S.sourceStatus[src.id] = 'idle';
+        renderGrid(); renderSources(); renderChrome();
+      }catch(e){
+        S.sourceStatus[src.id] = 'errored';
+        S.sourceErrors[src.id] = (e.name || 'Error') + ': ' + (e.message || 'unknown');
+        exhausted[src.id] = true;   // don't retry errored sources in auto-fill
+        renderSources();
+      }
+    }));
+  };
+
+  try{
+    S._resetDone = {};
+    const initial = runnable;
+    await runOnce(initial);
+    // Auto-fill: keep pulling from non-exhausted sources until grid fills or cap
+    let guard = 8;
+    while(S.items.length < FILL_TARGET && S.items.length < FILL_MAX && guard-- > 0){
+      const remaining = runnable.filter(s => !exhausted[s.id]);
+      if(!remaining.length) break;
+      await runOnce(remaining);
+    }
+  } finally {
+    S.loading = false;
+    delete S._resetDone;
+    persist();
+    renderAll();
+  }
+}
+
+//=== tile actions =====================================================
+function removeTile(key, then){
+  const el = gridEl.querySelector('[data-key="'+CSS.escape(key)+'"]');
+  if(!el){ then && then(); return; }
+  el.classList.add('leaving');
+  setTimeout(() => { then && then(); }, 200);
+}
+function keepItem(key){
+  removeTile(key, () => {
+    const idx = S.items.findIndex(x => K(x) === key);
+    if(idx < 0) return;
+    const [it] = S.items.splice(idx, 1);
+    S.cart.push(it);
+    S.seenIds[key] = 'kept';
+    persist();
+    renderGrid(); renderCart(); renderChrome();
+  });
+}
+function dropItem(key){
+  removeTile(key, () => {
+    const idx = S.items.findIndex(x => K(x) === key);
+    if(idx < 0) return;
+    S.items.splice(idx, 1);
+    S.seenIds[key] = 'dropped';
+    persist();
+    renderGrid(); renderChrome();
+  });
+}
+function removeFromCart(key){
+  const idx = S.cart.findIndex(x => K(x) === key);
+  if(idx < 0) return;
+  S.cart.splice(idx, 1);
+  delete S.seenIds[key];
+  persist();
+  renderCart(); renderChrome();
+}
+function clearCart(){
+  if(!S.cart.length) return;
+  if(!confirm('Clear cart? ('+S.cart.length+' items)')) return;
+  S.cart.forEach(it => delete S.seenIds[K(it)]);
+  S.cart = [];
+  persist(); renderCart(); renderChrome();
+}
+function clearGrid(){
+  if(!S.items.length && !S.hasSearched) return;
+  S.items = [];
+  S.hasSearched = false;
+  S.error = null;
+  persist(); renderAll();
+}
+function toggleCart(){
+  S.cartCollapsed = !S.cartCollapsed;
+  cartEl.classList.toggle('collapsed', S.cartCollapsed);
+  persist();
+}
+function toggleSources(){
+  S.sourcesCollapsed = !S.sourcesCollapsed;
+  sourcesEl.classList.toggle('collapsed', S.sourcesCollapsed);
+  persist();
+}
+
+function removeCustomSource(id){
+  const src = S.customSources.find(s => s.id === id);
+  if(!src) return;
+  if(!confirm('Remove custom source "'+src.name+'"?')) return;
+  S.customSources = S.customSources.filter(s => s.id !== id);
+  delete S.offsets[id]; delete S.hits[id]; delete S.sourceStatus[id]; delete S.sourceErrors[id];
+  // Also remove any cart items from this source? No — keep them, they're already curated data
+  persist();
+  renderSources(); renderChrome();
+}
+
+//=== export ===========================================================
+async function exportZip(){
+  if(!S.cart.length) return;
+  S.exporting = { current:0, total:S.cart.length };
+  renderChrome();
+  try{
+    const zip = new JSZip();
+    const folder = zip.folder(S.className || 'dataset');
+    const manifest = [[
+      'filename','source','source_url','page_url','license','artist','credit',
+      'date','width','height','bytes','mime','caption'
+    ]];
+    for(let i=0; i<S.cart.length; i++){
+      const it = S.cart[i];
+      S.exporting = { current:i, total:S.cart.length };
+      renderChrome();
+      try{
+        const resp = await fetch(it.full);
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        const blob = await resp.blob();
+        const ext = (it.title.match(/\.([a-zA-Z0-9]+)$/)?.[1]
+                    || it.full.match(/\.([a-zA-Z0-9]+)(\?|$)/)?.[1]
+                    || 'jpg').toLowerCase();
+        const base = sanitize(it.title.replace(/\.[^.]+$/, ''));
+        const filename = String(i+1).padStart(4,'0')+'_'+it.source+'_'+base+'.'+ext;
+        folder.file(filename, blob);
+        manifest.push([filename, it.source, it.full, it.pageUrl, it.license, it.artist, it.credit,
+                       it.date, it.width, it.height, it.size || blob.size, it.mime, it.caption]);
+      } catch(e){
+        manifest.push(['FAILED_'+it.source+'_'+it.id, it.source, it.full, it.pageUrl, it.license,
+                       it.artist, it.credit, it.date, it.width, it.height, it.size, it.mime,
+                       'FETCH_ERROR: '+e.message]);
+      }
+    }
+    folder.file('manifest.csv', manifest.map(r => r.map(csvEsc).join(',')).join('\n'));
+    const perSource = {};
+    S.cart.forEach(it => perSource[it.source] = (perSource[it.source] || 0) + 1);
+    folder.file('README.txt',
+      'GriffinSIGHT ATR dataset ingest\n'+
+      'class: '+S.className+'\n'+
+      'exported: '+new Date().toISOString()+'\n'+
+      'kept: '+S.cart.length+'\n\n'+
+      'Sources used (counts in this export):\n'+
+      Object.entries(perSource).map(([k,v]) => '  '+k+': '+v).join('\n')+'\n\n'+
+      'Review license column in manifest.csv before use. Prefer PD sources.\n');
+    const blob = await zip.generateAsync({ type:'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    a.href = url;
+    a.download = 'griffinsight_'+S.className+'_'+stamp+'.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch(e){
+    S.error = 'Export failed: '+e.message;
+  } finally {
+    setTimeout(() => { S.exporting = null; renderChrome(); }, 800);
+  }
+}
+
+//=== info modal =======================================================
+function showInfo(key){
+  const it = S.items.find(x => K(x) === key) || S.cart.find(x => K(x) === key);
+  if(!it) return;
+  const srcName = allSources().find(s => s.id === it.source)?.name || it.source;
+  modalEl.innerHTML = '<div class="modal-inner" onclick="event.stopPropagation()">'+
+    '<div class="modal-hdr"><span>Image Metadata</span>'+
+    '<button class="close" onclick="closeInfo()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'+
+    '</div>'+
+    '<img class="modal-img" src="'+escHtml(it.thumb)+'" alt="">'+
+    '<div class="modal-body">'+
+      '<span class="k">source</span>    <span class="v">'+escHtml(srcName)+'</span>'+
+      '<span class="k">title</span>     <span class="v">'+escHtml(it.title)+'</span>'+
+      '<span class="k">dimensions</span><span class="v">'+(it.width||'?')+'×'+(it.height||'?')+'</span>'+
+      '<span class="k">size</span>      <span class="v">'+fmtBytes(it.size)+'</span>'+
+      '<span class="k">license</span>   <span class="v">'+escHtml(it.license)+'</span>'+
+      '<span class="k">artist</span>    <span class="v">'+escHtml(it.artist || '—')+'</span>'+
+      '<span class="k">credit</span>    <span class="v">'+escHtml(it.credit || '—')+'</span>'+
+      '<span class="k">date</span>      <span class="v">'+escHtml(it.date || '—')+'</span>'+
+      '<span class="k">caption</span>   <span class="v">'+escHtml(it.caption || '—')+'</span>'+
+      '<span class="k">image url</span> <a href="'+escHtml(it.full)+'" target="_blank" rel="noreferrer">'+escHtml(it.full)+'</a>'+
+      '<span class="k">source page</span><a href="'+escHtml(it.pageUrl)+'" target="_blank" rel="noreferrer">'+escHtml(it.pageUrl)+'</a>'+
+    '</div>'+
+  '</div>';
+  modalEl.onclick = closeInfo;
+  modalEl.classList.remove('hidden');
+}
+function closeInfo(){ modalEl.classList.add('hidden'); modalEl.innerHTML=''; }
+window.closeInfo = closeInfo;
+
+//=== Add-source modal =================================================
+const EXAMPLE_PEXELS = {
+  id:'pexels', name:'Pexels', short:'PEXELS', meta:'Free stock · needs API key',
+  endpoint:'https://api.pexels.com/v1/search',
+  method:'GET',
+  headers:{ 'Authorization':'REPLACE_WITH_YOUR_PEXELS_API_KEY' },
+  params:{ 'query':'{query}', 'per_page':'{limit}', 'page':'{page}' },
+  pagination:{ strategy:'page', startsAt:1 },
+  response:{ resultsPath:'photos' },
+  map:{
+    id:'id', title:'alt', pageUrl:'url',
+    thumb:'src.medium', full:'src.original',
+    artist:'photographer', license:'=Pexels License',
+    width:'width', height:'height',
+  }
+};
+const EXAMPLE_MINIMAL = {
+  id:'my_api', name:'My API', short:'MINE', meta:'Description here',
+  endpoint:'https://api.example.com/search?q={query}&n={limit}&from={offset}',
+  map:{
+    id:'id', title:'title',
+    thumb:'thumbnail_url', full:'image_url',
+    license:'=unknown',
+  }
+};
+
+function openAddSource(){
+  asTextarea.value = '';
+  asFeedback.innerHTML = '';
+  asTextarea.classList.remove('invalid');
+  asModal.classList.remove('hidden');
+  asModal.onclick = e => { if(e.target === asModal) closeAddSource(); };
+  setTimeout(() => asTextarea.focus(), 50);
+}
+function closeAddSource(){ asModal.classList.add('hidden'); }
+
+//=== API key config modal =============================================
+let kmCurrentSrc = null;
+function openKeyModal(srcId){
+  const src = allSources().find(s => s.id === srcId);
+  if(!src || !src.needsKey) return;
+  kmCurrentSrc = srcId;
+  kmTitle.textContent = 'Configure ' + src.name + ' API Key';
+  const info = src.keyInfo || {};
+  kmIntro.innerHTML =
+    (info.how ? escHtml(info.how) : '') +
+    (info.signup ? ' <a href="'+escHtml(info.signup)+'" target="_blank" rel="noreferrer" style="color:var(--info)">'+escHtml(info.signup.replace(/^mailto:/,''))+'</a>' : '') +
+    (info.note ? '<div style="color:var(--warn); margin-top:8px; font-size:10px">⚠ '+escHtml(info.note)+'</div>' : '');
+  kmOrigin.textContent = location.origin === 'null' || location.protocol === 'file:'
+                         ? 'file:// (keyed sources will fail — deploy to hosted URL first)'
+                         : location.origin;
+  kmKey.value = S.apiKeys[srcId] || '';
+  kmFeedback.innerHTML = '';
+  kmRemoveBtn.style.display = (S.apiKeys[srcId] ? 'inline-flex' : 'none');
+  kmModal.classList.remove('hidden');
+  kmModal.onclick = e => { if(e.target === kmModal) closeKeyModal(); };
+  setTimeout(() => kmKey.focus(), 50);
+}
+function closeKeyModal(){ kmModal.classList.add('hidden'); kmCurrentSrc = null; }
+function saveKey(){
+  if(!kmCurrentSrc) return;
+  const val = kmKey.value.trim();
+  if(!val){
+    kmFeedback.innerHTML = '<div class="as-feedback err">Enter a key or tap Remove.</div>';
+    return;
+  }
+  S.apiKeys[kmCurrentSrc] = val;
+  // Clear any prior error state so the source gets a fresh try next search
+  S.sourceErrors[kmCurrentSrc] = null;
+  S.sourceStatus[kmCurrentSrc] = 'idle';
+  persist();
+  kmFeedback.innerHTML = '<div class="as-feedback ok">Key saved. Source will be queried on the next search.</div>';
+  renderSources(); renderChrome();
+  setTimeout(closeKeyModal, 700);
+}
+function removeKey(){
+  if(!kmCurrentSrc) return;
+  if(!confirm('Remove stored API key for this source?')) return;
+  delete S.apiKeys[kmCurrentSrc];
+  persist();
+  renderSources(); renderChrome();
+  closeKeyModal();
+}
+
+function validateSourceConfig(cfg){
+  const errs = [];
+  if(!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) errs.push('config must be a JSON object');
+  else {
+    if(!cfg.name || typeof cfg.name !== 'string') errs.push('missing required string: name');
+    if(!cfg.endpoint || typeof cfg.endpoint !== 'string') errs.push('missing required string: endpoint');
+    if(cfg.endpoint && !/^https?:\/\//i.test(cfg.endpoint)) errs.push('endpoint must start with http:// or https://');
+    if(!cfg.map || typeof cfg.map !== 'object') errs.push('missing required object: map');
+    else {
+      if(!cfg.map.thumb) errs.push('map.thumb is required (field path to thumbnail URL)');
+      if(!cfg.map.full && !cfg.map.thumb) errs.push('map.full recommended (falls back to thumb if absent)');
+    }
+    if(cfg.pagination && cfg.pagination.strategy &&
+       !['offset','page'].includes(cfg.pagination.strategy)){
+      errs.push('pagination.strategy must be "offset" or "page"');
+    }
+    if(cfg.id && typeof cfg.id !== 'string') errs.push('id must be a string');
+    if(cfg.id && !/^[a-z0-9_]{2,40}$/i.test(cfg.id)) errs.push('id must be alphanumeric/underscore, 2–40 chars');
+    const allIds = [...BUILTIN_SOURCES.map(s => s.id), ...S.customSources.map(s => s.id)];
+    if(cfg.id && allIds.includes(cfg.id)) errs.push('id "'+cfg.id+'" already exists — pick a different id');
+  }
+  return errs;
+}
+
+function saveCustomSource(){
+  asFeedback.innerHTML = '';
+  asTextarea.classList.remove('invalid');
+  const raw = asTextarea.value.trim();
+  if(!raw){
+    asFeedback.innerHTML = '<div class="as-feedback err">Paste a JSON configuration first.</div>';
+    return;
+  }
+  let cfg;
+  try{
+    cfg = JSON.parse(raw);
+  }catch(e){
+    asTextarea.classList.add('invalid');
+    asFeedback.innerHTML = '<div class="as-feedback err">JSON parse error: '+escHtml(e.message)+'</div>';
+    return;
+  }
+  // Auto-derive id from name if absent
+  if(!cfg.id && cfg.name){
+    cfg.id = String(cfg.name).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
+  }
+  if(!cfg.short && cfg.name){
+    cfg.short = String(cfg.name).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8) || 'CUSTOM';
+  }
+  if(!cfg.meta) cfg.meta = 'Custom source';
+  const errs = validateSourceConfig(cfg);
+  if(errs.length){
+    asTextarea.classList.add('invalid');
+    asFeedback.innerHTML = '<div class="as-feedback err"><b>Validation failed:</b><br>• '+errs.map(escHtml).join('<br>• ')+'</div>';
+    return;
+  }
+  // Normalize and save
+  S.customSources.push(cfg);
+  S.offsets[cfg.id] = 0;
+  S.hits[cfg.id] = 0;
+  S.sourceStatus[cfg.id] = 'idle';
+  persist();
+  asFeedback.innerHTML = '<div class="as-feedback ok">Source "'+escHtml(cfg.name)+'" added. It will be queried on the next search.</div>';
+  renderSources();
+  setTimeout(closeAddSource, 900);
+}
+
+//=== render ===========================================================
+function cardHtml(item){
+  const isPd = /^PD|^public domain|^No known/i.test(item.license);
+  const src = allSources().find(s => s.id === item.source);
+  const key = K(item);
+  return (
+    '<div class="card" data-key="'+escHtml(key)+'">'+
+      '<div class="thumb">'+
+        '<img src="'+escHtml(item.thumb)+'" alt="'+escHtml(item.title)+'" loading="lazy" referrerpolicy="no-referrer">'+
+        '<div class="src-tag">'+escHtml(src?.short || item.source)+'</div>'+
+        '<button class="info-btn" data-act="info" data-key="'+escHtml(key)+'" title="Metadata">'+
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'+
+        '</button>'+
+      '</div>'+
+      '<div class="meta">'+
+        '<div class="title">'+escHtml(item.title)+'</div>'+
+        '<div>'+(item.width?item.width+'×'+item.height+' · ':'')+(item.size?fmtBytes(item.size)+' · ':'')+
+        '<span class="lic'+(isPd?' pd':'')+'">'+escHtml(item.license || 'unknown')+'</span></div>'+
+      '</div>'+
+      '<div class="actions">'+
+        '<button class="a-keep" data-act="keep" data-key="'+escHtml(key)+'">✓ KEEP</button>'+
+        '<button class="a-drop" data-act="drop" data-key="'+escHtml(key)+'">✗ DROP</button>'+
+      '</div>'+
+    '</div>'
+  );
+}
+
+function cartItemHtml(item){
+  const isPd = /^PD|^public domain|^No known/i.test(item.license);
+  const src = allSources().find(s => s.id === item.source);
+  const key = K(item);
+  return (
+    '<div class="cart-item" data-key="'+escHtml(key)+'">'+
+      '<div class="ci-thumb"><img src="'+escHtml(item.thumb)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></div>'+
+      '<div class="ci-meta">'+
+        '<div class="ci-title">'+escHtml(item.title)+'</div>'+
+        '<div class="ci-sub"><span class="ci-src">'+escHtml(src?.short || item.source)+'</span> · '+
+        (item.size?fmtBytes(item.size)+' · ':'')+
+        '<span class="ci-lic'+(isPd?' pd':'')+'">'+escHtml(item.license)+'</span></div>'+
+      '</div>'+
+      '<button class="ci-remove" data-act="cart-remove" data-key="'+escHtml(key)+'" title="Remove">'+
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+      '</button>'+
+    '</div>'
+  );
+}
+
+function sourceHtml(src){
+  const locked = src.status === 'locked';
+  const needsCfg = needsConfig(src);
+  let stateCls;
+  if(locked) stateCls = 'locked';
+  else if(needsCfg) stateCls = 'needs-config';
+  else if(isExcluded(src.id)) stateCls = 'excluded';
+  else {
+    const status = S.sourceStatus[src.id];
+    stateCls = status === 'loading' ? 'loading'
+             : status === 'errored' ? 'errored included'
+             : 'included';
+  }
+  const err = S.sourceErrors[src.id];
+  const hits = S.hits[src.id] || 0;
+  const hasKey = !!(S.apiKeys[src.id] || '').trim();
+  let meta;
+  if(needsCfg) meta = 'Configure API key →';
+  else if(err && !locked && !isExcluded(src.id)) meta = err;
+  else meta = src.meta + (hasKey ? ' · ✓ key set' : '');
+  const removable = src.kind === 'custom';
+  const configurable = !!src.needsKey;
+  return (
+    '<div class="source '+stateCls+'" data-src="'+escHtml(src.id)+'" data-act="source-toggle">'+
+      '<div class="source-head">'+
+        '<div class="source-status"></div>'+
+        '<div class="source-name">'+escHtml(src.name)+'</div>'+
+        '<div class="source-hits">'+hits+'</div>'+
+      '</div>'+
+      '<div class="source-meta">'+escHtml(meta)+'</div>'+
+      (configurable
+        ? '<button class="source-config" data-act="source-config" data-src="'+escHtml(src.id)+'" title="Configure API key">'+
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'+
+          '</button>'
+        : '')+
+      (removable
+        ? '<button class="source-remove" data-act="source-remove" data-src="'+escHtml(src.id)+'" title="Remove source">'+
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+          '</button>'
+        : '')+
+    '</div>'
+  );
+}
+
+function addSourceButtonHtml(){
+  return (
+    '<button class="add-source-btn" data-act="add-source">'+
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'+
+      'ADD SOURCE'+
+    '</button>'
+  );
+}
+
+function renderGrid(){ gridEl.innerHTML = S.items.map(cardHtml).join(''); }
+
+function renderCart(){
+  const n = S.cart.length;
+  if(n === 0){
+    cartBody.innerHTML = '<div class="cart-empty">Empty.<br><span style="font-size:10px">Tap ✓ KEEP on a tile<br>to add it here.</span></div>';
+    cartFooter.style.display = 'none';
+  } else {
+    cartBody.innerHTML = S.cart.map(cartItemHtml).join('');
+    cartFooter.style.display = 'flex';
+  }
+  const totalBytes = S.cart.reduce((s, i) => s + (i.size || 0), 0);
+  cartChip.textContent = n;
+  cartSub.textContent = totalBytes ? fmtBytes(totalBytes) : '—';
+}
+
+function renderSources(){
+  const live    = BUILTIN_SOURCES.filter(s => s.status === 'live');
+  const custom  = S.customSources.map(c => ({ ...c, status:'live', kind:'custom' }));
+  const locked  = BUILTIN_SOURCES.filter(s => s.status === 'locked');
+  let html = live.map(sourceHtml).join('');
+  if(custom.length) html += custom.map(sourceHtml).join('');
+  html += addSourceButtonHtml();
+  if(locked.length){
+    html += '<div class="source-divider-label">Unavailable in this environment</div>';
+    html += locked.map(sourceHtml).join('');
+  }
+  sourcesBody.innerHTML = html;
+
+  // Sub-header: "N of T active · M hits" + adaptive link
+  const totalHits = Object.values(S.hits).reduce((a,b) => a + (b||0), 0);
+  const queryable = activeSources().filter(s => !needsConfig(s));
+  const activeN = queryable.length;
+  const totalN  = toggleableSources().length;
+  const needsKeyN = activeSources().filter(s => needsConfig(s)).length;
+  let sub = activeN+' of '+totalN+' active · '+totalHits+' hits';
+  if(needsKeyN) sub += ' · <span style="color:var(--warn)">'+needsKeyN+' need key</span>';
+  if(totalN > 0){
+    const anyExcluded = S.excludedSources.length > 0;
+    const linkLabel = anyExcluded ? 'select all' : 'clear all';
+    const linkAct   = anyExcluded ? 'select-all' : 'select-none';
+    sub += ' · <span class="toggle-all" data-act="'+linkAct+'">'+linkLabel+'</span>';
+  }
+  sourcesSub.innerHTML = sub;
+}
+
+function renderChrome(){
+  const pend = S.items.length;
+  const cartN = S.cart.length;
+  countsEl.innerHTML =
+    '<span><span class="dot" style="background:var(--keep)"></span>'+cartN+' cart</span>'+
+    '<span><span class="dot" style="background:var(--text-mute)"></span>'+pend+' pending</span>';
+
+  goBtn.disabled = S.loading;
+  goBtn.innerHTML = S.loading ? '<span class="spin">⟳</span> LOADING' : '▶ GO';
+  moreBtn.disabled = S.loading || !S.hasSearched;
+
+  if(S.error){
+    errEl.classList.remove('hidden');
+    errEl.innerHTML = '<div class="err-title">ERROR</div>'+escHtml(S.error);
+  } else {
+    errEl.classList.add('hidden');
+  }
+
+  emptyInitial.classList.toggle('hidden', S.hasSearched || S.items.length > 0 || S.loading);
+
+  // No-results: every active source returned 0 and no errors stuck
+  const allZero = activeSources().every(s => (S.offsets[s.id] || 0) > 0)
+                  && activeSources().length > 0;
+  const noResults = S.items.length === 0 && !S.loading && S.hasSearched && allZero;
+  emptyNoResults.classList.toggle('hidden', !noResults);
+  if(noResults){
+    emptyNoResults.innerHTML =
+      '<div class="empty-title">NO RESULTS</div>'+
+      '<div>No images matched "<span style="color:var(--text)">'+escHtml(S.query)+'</span>" across '+activeSources().length+' active source'+(activeSources().length===1?'':'s')+'.</div>'+
+      '<div style="font-size:11px; margin-top:6px">Try different keywords.</div>';
+  }
+
+  const allSorted = S.items.length === 0 && S.hasSearched && !S.loading && !allZero
+                    && activeSources().some(s => (S.offsets[s.id] || 0) > 0);
+  emptyAllSorted.classList.toggle('hidden', !allSorted);
+
+  gridHdr.classList.toggle('hidden', S.items.length === 0);
+  if(S.items.length){
+    gridCount.textContent = S.items.length + (S.items.length === 1 ? ' candidate' : ' candidates');
+  }
+
+  exportBtn.disabled = !cartN || !!S.exporting;
+  exportLabel.textContent = S.exporting
+    ? S.exporting.current+'/'+S.exporting.total
+    : 'EXPORT '+cartN+' AS .ZIP';
+}
+
+function renderPresets(){
+  const base = '<span class="label">presets:</span>';
+  presetsEl.innerHTML = base + PRESETS.map(p =>
+    '<button class="preset" data-q="'+escHtml(p.query)+'" data-c="'+escHtml(p.cls)+'">'+escHtml(p.label)+'</button>'
+  ).join('');
+}
+
+function renderClassSelect(){
+  const presetClasses = PRESETS.map(p => p.cls);
+  const opts = [...presetClasses];
+  if(S.className && !opts.includes(S.className)) opts.unshift(S.className);
+  clsInput.innerHTML =
+    opts.map(c =>
+      '<option value="'+escHtml(c)+'"'+(c === S.className ? ' selected' : '')+'>'+escHtml(c)+'</option>'
+    ).join('') +
+    '<option value="__custom__" class="custom">+ custom…</option>';
+}
+
+function renderAll(){ renderGrid(); renderCart(); renderSources(); renderChrome(); }
+
+//=== events ===========================================================
+qInput.addEventListener('input', e => { S.query = e.target.value; persist(); });
+qInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); runSearch(true); } });
+
+clsInput.addEventListener('change', e => {
+  const v = e.target.value;
+  if(v === '__custom__'){
+    const raw = prompt('Custom class name (a-z, 0-9, _):', S.className);
+    if(raw){
+      const clean = raw.replace(/[^a-z0-9_]/gi,'').toLowerCase().slice(0, 40);
+      if(clean) S.className = clean;
+    }
+    renderClassSelect(); persist(); return;
+  }
+  S.className = v; persist();
+});
+
+goBtn.addEventListener('click', () => runSearch(true));
+moreBtn.addEventListener('click', () => runSearch(false));
+exportBtn.addEventListener('click', exportZip);
+cartClearBtn.addEventListener('click', clearCart);
+clearGridBtn.addEventListener('click', clearGrid);
+
+sourcesBody.addEventListener('click', e => {
+  const addBtn = e.target.closest('[data-act="add-source"]');
+  if(addBtn){ openAddSource(); return; }
+  const cfgBtn = e.target.closest('[data-act="source-config"]');
+  if(cfgBtn){ e.stopPropagation(); openKeyModal(cfgBtn.dataset.src); return; }
+  const rmBtn = e.target.closest('[data-act="source-remove"]');
+  if(rmBtn){ e.stopPropagation(); removeCustomSource(rmBtn.dataset.src); return; }
+  const card = e.target.closest('[data-act="source-toggle"]');
+  if(card){
+    const src = allSources().find(s => s.id === card.dataset.src);
+    if(!src || src.status === 'locked') return;
+    // If source needs a key and doesn't have one, tapping anywhere opens the key modal
+    if(needsConfig(src)){ openKeyModal(src.id); return; }
+    toggleSource(card.dataset.src);
+    return;
+  }
+});
+
+sourcesHdr.addEventListener('click', e => {
+  // Check for select/clear-all link first — don't trigger header collapse
+  const link = e.target.closest('[data-act]');
+  if(link){
+    e.stopPropagation();
+    if(link.dataset.act === 'select-all')  selectAllSources();
+    if(link.dataset.act === 'select-none') clearAllSources();
+    return;
+  }
+  if(window.matchMedia('(max-width:899px)').matches) toggleSources();
+});
+sourcesToggle.addEventListener('click', e => { e.stopPropagation(); toggleSources(); });
+
+cartHdr.addEventListener('click', () => {
+  if(window.matchMedia('(max-width:899px)').matches) toggleCart();
+});
+
+presetsEl.addEventListener('click', e => {
+  const b = e.target.closest('.preset'); if(!b) return;
+  S.query = b.dataset.q; S.className = b.dataset.c;
+  qInput.value = S.query;
+  renderClassSelect();
+  persist();
+});
+
+gridEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const { act, key } = b.dataset;
+  if(act === 'keep') keepItem(key);
+  else if(act === 'drop') dropItem(key);
+  else if(act === 'info') showInfo(key);
+});
+
+cartBody.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  if(b.dataset.act === 'cart-remove') removeFromCart(b.dataset.key);
+});
+
+// Add-source modal
+asCloseBtn.addEventListener('click', closeAddSource);
+asCancelBtn.addEventListener('click', closeAddSource);
+asSaveBtn.addEventListener('click', saveCustomSource);
+asLoadExample.addEventListener('click', () => {
+  asTextarea.value = JSON.stringify(EXAMPLE_PEXELS, null, 2);
+  asFeedback.innerHTML = '<div class="as-feedback ok" style="border-color:var(--warn); background:rgba(232,163,61,.1); color:var(--warn)">Replace <code style="background:transparent; color:inherit">REPLACE_WITH_YOUR_PEXELS_API_KEY</code> with your actual key before saving.</div>';
+});
+asLoadExampleSimple.addEventListener('click', () => {
+  asTextarea.value = JSON.stringify(EXAMPLE_MINIMAL, null, 2);
+  asFeedback.innerHTML = '';
+});
+
+// API-key config modal
+kmCloseBtn.addEventListener('click', closeKeyModal);
+kmCancelBtn.addEventListener('click', closeKeyModal);
+kmSaveBtn.addEventListener('click', saveKey);
+kmRemoveBtn.addEventListener('click', removeKey);
+kmKey.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveKey(); } });
+
+//=== init =============================================================
+hydrate();
+qInput.value = S.query;
+renderClassSelect();
+if(S.cartCollapsed)    cartEl.classList.add('collapsed');
+if(S.sourcesCollapsed) sourcesEl.classList.add('collapsed');
+// Seed per-source hits/offsets for any new sources not previously persisted
+allSources().forEach(s => {
+  if(S.offsets[s.id] == null) S.offsets[s.id] = 0;
+  if(S.hits[s.id] == null)    S.hits[s.id] = 0;
+  S.sourceStatus[s.id] = s.status === 'locked' ? 'locked' : 'idle';
+});
+renderPresets();
+renderAll();
+</script>
+</body>
+</html>
