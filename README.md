@@ -79,7 +79,7 @@ plain Apache, even `python -m http.server`. The tool has zero server-side depend
 6. On each tile: **✓ KEEP** moves to cart · **✗ DROP** discards
 7. **EXPORT .ZIP** downloads images + manifest
 
-## Custom sources
+## Custom query sources
 
 Add any REST API that returns JSON with image URLs via **+ ADD SOURCE**.
 Config format supports URL templates, auth headers, offset/page pagination,
