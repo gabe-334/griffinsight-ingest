@@ -94,7 +94,8 @@ body{padding:12px 14px 24px; padding-bottom:calc(24px + env(safe-area-inset-bott
   .sources{position:sticky; top:10px; max-height:calc(100vh - 20px); overflow-y:auto}
 }
 .sources-hdr{padding:10px 12px; border-bottom:1px solid var(--border);
-             display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer}
+             display:flex; flex-direction:column; gap:4px; cursor:pointer}
+.sources-hdr-top{display:flex; align-items:center; justify-content:space-between; gap:8px}
 .sources-hdr-title{font-family:var(--disp); font-weight:700; font-size:12px; letter-spacing:.15em;
                    color:var(--info); display:flex; align-items:center; gap:7px}
 .sources-hdr-sub{font-family:var(--mono); font-size:10px; color:var(--text-dim)}
@@ -102,6 +103,7 @@ body{padding:12px 14px 24px; padding-bottom:calc(24px + env(safe-area-inset-bott
                              text-decoration-color:var(--border-hi); text-underline-offset:2px;
                              margin-left:6px}
 .sources-hdr-sub .toggle-all:active{color:var(--keep)}
+.sources-hdr-warn{font-family:var(--mono); font-size:10px; color:var(--warn); font-weight:600}
 .sources-toggle{background:none; border:none; color:var(--text-dim); cursor:pointer; padding:4px;
                 display:flex; transition:transform .15s}
 @media (min-width:900px){ .sources-toggle{display:none} .sources-hdr{cursor:default} }
@@ -383,14 +385,17 @@ body{padding:12px 14px 24px; padding-bottom:calc(24px + env(safe-area-inset-bott
 <div class="layout">
   <aside class="sources" id="sources">
     <div class="sources-hdr" id="sources-hdr">
-      <div class="sources-hdr-title">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-        SOURCES
+      <div class="sources-hdr-top">
+        <div class="sources-hdr-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          SOURCES
+        </div>
+        <button class="sources-toggle" id="sources-toggle" aria-label="Toggle sources">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </div>
       <div class="sources-hdr-sub" id="sources-sub"></div>
-      <button class="sources-toggle" id="sources-toggle" aria-label="Toggle sources">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+      <div class="sources-hdr-warn hidden" id="sources-warn"></div>
     </div>
     <div class="sources-body" id="sources-body"></div>
   </aside>
@@ -633,7 +638,7 @@ const qInput = $('q'), clsInput = $('cls'),
       clearGridBtn = $('clear-grid'),
       sourcesEl = $('sources'), sourcesHdr = $('sources-hdr'),
       sourcesBody = $('sources-body'), sourcesSub = $('sources-sub'),
-      sourcesToggle = $('sources-toggle'),
+      sourcesWarn = $('sources-warn'), sourcesToggle = $('sources-toggle'),
       cartEl = $('cart'), cartHdr = $('cart-hdr'),
       cartChip = $('cart-chip'), cartSub = $('cart-sub'),
       cartBody = $('cart-body'), cartFooter = $('cart-footer'),
@@ -1469,14 +1474,13 @@ function renderSources(){
   }
   sourcesBody.innerHTML = html;
 
-  // Sub-header: "N of T active · M hits" + adaptive link
+  // Sub-header row 1: "N of T active · M hits · [clear all | select all]"
   const totalHits = Object.values(S.hits).reduce((a,b) => a + (b||0), 0);
   const queryable = activeSources().filter(s => !needsConfig(s));
   const activeN = queryable.length;
   const totalN  = toggleableSources().length;
   const needsKeyN = activeSources().filter(s => needsConfig(s)).length;
   let sub = activeN+' of '+totalN+' active · '+totalHits+' hits';
-  if(needsKeyN) sub += ' · <span style="color:var(--warn)">'+needsKeyN+' need key</span>';
   if(totalN > 0){
     const anyExcluded = S.excludedSources.length > 0;
     const linkLabel = anyExcluded ? 'select all' : 'clear all';
@@ -1484,6 +1488,14 @@ function renderSources(){
     sub += ' · <span class="toggle-all" data-act="'+linkAct+'">'+linkLabel+'</span>';
   }
   sourcesSub.innerHTML = sub;
+
+  // Sub-header row 2: warnings (currently: needs-api-key count)
+  if(needsKeyN > 0){
+    sourcesWarn.textContent = needsKeyN+' need api key';
+    sourcesWarn.classList.remove('hidden');
+  } else {
+    sourcesWarn.classList.add('hidden');
+  }
 }
 
 function renderChrome(){
